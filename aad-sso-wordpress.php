@@ -192,7 +192,7 @@ class AADSSO {
 				$_SESSION['aadsso_redirect_to'] = $_GET['redirect_to'];
 			}
 
-			if ($auto_redirect && !isset($_GET['code'])) {
+			if ($auto_redirect && !isset($_GET['code']) && !(isset($_POST['log']) && AADSSO_PROBLEM === TRUE)) {
 				wp_redirect( $this->get_login_url() );
 				die();
 			}
