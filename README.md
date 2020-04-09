@@ -6,7 +6,7 @@ Azure Active Directory (Azure AD) and can use this plugin for all of their users
 
 - Azure AD group membership can be used to determine access and role.
 - New users can be registered on-the-fly based on their Azure AD profile.
-- Can always fall back to regular username and password login.
+- Will disable WordPress native login process.
 
 *This is a work in progress, please feel free to contact me for help. This plugin is provided as-is, with no guarantees or assurances.*
 
@@ -220,12 +220,18 @@ There are several ways Azure AD groups can be created/managed. Some of them requ
 
 ## Advanced
 
-### Refreshing the OpenID Connect configuration cache
+Before using advanced troubleshooting tools, you need to add `define( 'AADSSO_PROBLEM', TRUE );` to your `wp-config.php`
 
-Most of the OpenID Connect endpoints and configuration (e.g. signing keys, etc.) are obtained from the OpenID Connect configuration endpoint. These values are cached for one hour, but can always be forced to re-load by adding `aadsso_reload_openid_config=1` to the query string in the login page. (This shouldn't really be needed, but it has shown to be useful during development.)
+### Dealing with lockouts: restore native WordPress login process
+
+Adding `define( 'AADSSO_PROBLEM', TRUE );` to `wp-config.php` will restore native WordPress logins.
 
 ### Bypassing automatic redirect to Azure AD to prevent lockouts
 
 If you've configured this plugin to automatically redirect to Azure AD for sign-in, but something is misconfigured, you may find yourself locked out of your site's admin dashboard.
 
 To log in to your site *without* automatically redirecting to Azure AD (thus giving you an opportunity to enter a regular username and password), you can append `?aadsso_no_redirect=please` to the login URL. For example, if your login URL is `https://example.com/wp-login.php`, navigating to `https://example.com/wp-login.php?aadsso_no_redirect=please` will prevent any automatic redirects.
+
+### Refreshing the OpenID Connect configuration cache
+
+Most of the OpenID Connect endpoints and configuration (e.g. signing keys, etc.) are obtained from the OpenID Connect configuration endpoint. These values are cached for one hour, but can always be forced to re-load by adding `aadsso_reload_openid_config=1` to the query string in the login page. (This shouldn't really be needed, but it has shown to be useful during development.)

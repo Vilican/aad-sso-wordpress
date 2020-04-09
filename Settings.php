@@ -212,7 +212,7 @@ class AADSSO_Settings {
 		 * required, adding aadsso_reload_openid_config=1 in the URL will do the trick.
 		 */
 		$openid_configuration = get_transient( 'aadsso_openid_configuration' );
-		if( false === $openid_configuration || isset( $_GET['aadsso_reload_openid_config'] ) ) {
+		if(false === $openid_configuration || (isset($_GET['aadsso_reload_openid_config']) && AADSSO_PROBLEM === TRUE)) {
 			$openid_configuration = json_decode(
 				self::get_remote_contents( $instance->openid_configuration_endpoint ),
 				true // Return associative array

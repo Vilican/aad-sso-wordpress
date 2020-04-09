@@ -1,7 +1,6 @@
 <?php
-namespace AADSSO\Firebase\JWT;
+namespace Firebase\JWT;
 
 class BeforeValidException extends \UnexpectedValueException
 {
-
 }

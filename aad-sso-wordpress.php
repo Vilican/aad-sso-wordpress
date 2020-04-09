@@ -2,11 +2,10 @@
 
 /*
 Plugin Name: Single Sign-on with Azure Active Directory
-Plugin URI: http://github.com/psignoret/aad-sso-wordpress
+Plugin URI: https://github.com/Vilican/aad-sso-wordpress
 Description: Allows you to use your organization's Azure Active Directory user accounts to log in to WordPress. If your organization is using Office 365, your user accounts are already in Azure Active Directory. This plugin uses OAuth 2.0 to authenticate users, and the Microsoft Graph API to get group membership and other details.
-Author: Philippe Signoret
-Version: 0.7.0
-Author URI: https://www.psignoret.com/
+Author: Philippe Signoret & Matyáš Koc
+Version: 0.8.0
 Text Domain: aad-sso-wordpress
 Domain Path: /languages/
 */
@@ -19,6 +18,7 @@ define( 'AADSSO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 
 defined( 'AADSSO_DEBUG' ) or define( 'AADSSO_DEBUG', FALSE );
 defined( 'AADSSO_DEBUG_LEVEL' ) or define( 'AADSSO_DEBUG_LEVEL', 0 );
+defined( 'AADSSO_PROBLEM' ) or define( 'AADSSO_PROBLEM', FALSE );
 
 // Proxy to be used for calls, should be useful for tracing with Fiddler
 // BUGBUG: Doesn't actually work, at least not with WP running on WAMP stack
@@ -75,6 +75,18 @@ class AADSSO {
 
 		// The authenticate filter
 		add_filter( 'authenticate', array( $this, 'authenticate' ), 1, 3 );
+
+		// Remove WordPress authenticate filters & disable lost password
+        if (AADSSO_PROBLEM !== TRUE) {
+            remove_filter( 'authenticate', 'wp_authenticate', 20 );
+            remove_filter( 'authenticate', 'wp_authenticate_cookie', 20 );
+            remove_filter( 'authenticate', 'wp_authenticate_spam_check', 20 );
+            remove_filter( 'authenticate', 'wp_authenticate_email_password', 20 );
+            remove_filter( 'authenticate', 'wp_authenticate_username_password', 20 );
+            add_filter ( 'allow_password_reset', 'disable_password_reset' );
+            add_filter ( 'show_password_fields', 'disable_password_reset2' );
+            add_filter ( 'login_init', 'disable_password_reset2' );
+        }
 
 		// Add the <style> element to the login page
 		add_action( 'login_enqueue_scripts', array( $this, 'print_login_css' ) );
@@ -163,7 +175,7 @@ class AADSSO {
 		 * done after the 'aad_auto_forward_login' filter is applied, to ensure it also overrides
 		 * any filters.
 		 */ 
-		if ( isset( $_GET['aadsso_no_redirect'] ) ) {
+		if (isset($_GET['aadsso_no_redirect']) && AADSSO_PROBLEM === TRUE) {
 			AADSSO::debug_log( 'Skipping automatic redirects to Azure AD.' );
 			$auto_redirect = FALSE;
 		}
@@ -180,12 +192,7 @@ class AADSSO {
 				$_SESSION['aadsso_redirect_to'] = $_GET['redirect_to'];
 			}
 
-			/*
-			 * $_POST['log'] is set when the login form is submitted. It's important to check
-			 * for this condition also because we want to allow the login form to be usable
-			 * when the 'aadsso_no_redirect' anti-lockout option is used.
-			 */
-			if ( $auto_redirect && ! isset( $_GET['code'] ) && ! isset( $_POST['log'] ) ) {
+			if ($auto_redirect && !isset($_GET['code'])) {
 				wp_redirect( $this->get_login_url() );
 				die();
 			}
@@ -440,14 +447,13 @@ class AADSSO {
 				}
 
 				// Setup the minimum required user data
-				// TODO: Is null better than a random password?
 				// TODO: Look for otherMail, or proxyAddresses before UPN for email
 				$userdata = array(
 					'user_email' => $unique_name,
 					'user_login' => $unique_name,
 					'first_name' => ! empty( $jwt->given_name ) ? $jwt->given_name : '',
 					'last_name'  => ! empty( $jwt->family_name ) ? $jwt->family_name : '',
-					'user_pass'  => null,
+					'user_pass'  => random_bytes(random_int(60, 64)), // create 60 to 64 byte random password
 				);
 
 				$new_user_id = wp_insert_user( $userdata );
@@ -583,6 +589,7 @@ class AADSSO {
 	 */
 	function clear_session() {
 		if ( session_id() ) {
+		    session_unset();
 			session_destroy();
 		}
 	}
@@ -640,7 +647,11 @@ class AADSSO {
 	 * Renders the CSS used by the HTML injected into the login page.
 	 */
 	function print_login_css() {
-		wp_enqueue_style( AADSSO, AADSSO_PLUGIN_URL . '/login.css' );
+	    if (AADSSO_PROBLEM === TRUE) {
+		    wp_enqueue_style( AADSSO, AADSSO_PLUGIN_URL . 'login-emergency.css' );
+        } else {
+            wp_enqueue_style( AADSSO, AADSSO_PLUGIN_URL . 'login.css' );
+        }
 	}
 
 	/**
@@ -739,6 +750,19 @@ if ( ! function_exists( 'com_create_guid' ) ) {
 			.chr( 125 ); // "}"
 		return $uuid;
 	}
+}
+
+function disable_password_reset() {
+    return false;
+}
+
+function disable_password_reset2() {
+    if (isset( $_GET['action'] )){
+        if ( in_array( $_GET['action'], array('lostpassword', 'retrievepassword', 'register') ) ) {
+            wp_redirect( wp_login_url(), 301 );
+            exit;
+        }
+    }
 }
 
 // Load settings JSON contents from DB and initialize the plugin

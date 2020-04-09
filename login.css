@@ -10,3 +10,31 @@
 	text-decoration: none;
 	color: #aaa;
 }
+
+input {
+	display: none !important;
+}
+
+label {
+	display: none !important;
+}
+
+.forgetmenot {
+	display: none !important;
+}
+
+.submit {
+	display: none !important;
+}
+
+.login form {
+	padding: 26px 46px;
+}
+
+.aadsso-login-form-text {
+	padding: 0;
+}
+
+#nav {
+	display: none !important;
+}
